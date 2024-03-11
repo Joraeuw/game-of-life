@@ -4,7 +4,6 @@ import game_of_life.types.Tribe;
 import game_of_life.utils.Color;
 import game_of_life.utils.Convolution;
 import game_of_life.utils.KMeansClustering;
-import game_of_life.utils.Kernel;
 import game_of_life.utils.Pair;
 import game_of_life.utils.Point;
 
