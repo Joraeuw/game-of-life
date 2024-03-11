@@ -5,17 +5,15 @@ import io.vavr.collection.Vector;
 import java.util.Random;
 
 public class KMeansClustering {
+  private static final int MAX_ITERATIONS = 40;
+
   @SuppressWarnings("unused")
-  public static Vector<Vector<Point<Integer>>> kMeansCluster(Vector<Point<Integer>> points,
-      int k, int maxIterations) {
-    if (points.size() < k) {
-      throw new IllegalArgumentException("Number of clusters cannot be more than the number of points.");
-    }
+  public static Vector<Vector<Point<Integer>>> kMeansCluster(Vector<Point<Integer>> points, int k) {
 
     Vector<Point<Double>> centroids = initializeCentroids(points, k);
     Vector<Vector<Point<Integer>>> clusters = Vector.empty();
 
-    for (Integer _iteration : List.rangeClosed(0, maxIterations)) {
+    for (Integer _iteration : List.rangeClosed(0, MAX_ITERATIONS)) {
       clusters = centroids.map(centroid -> Vector.empty());
       clusters = assignToCentroids(points, clusters, centroids);
       Vector<Point<Double>> new_centroids = updateCentroids(clusters);
@@ -35,8 +33,10 @@ public class KMeansClustering {
         .toVector();
   }
 
-  private static Vector<Vector<Point<Integer>>> assignToCentroids(Vector<Point<Integer>> points,
-      Vector<Vector<Point<Integer>>> clusters, Vector<Point<Double>> centroids) {
+  private static Vector<Vector<Point<Integer>>> assignToCentroids(
+      Vector<Point<Integer>> points,
+      Vector<Vector<Point<Integer>>> clusters,
+      Vector<Point<Double>> centroids) {
     return points.foldLeft(clusters, (acc, point) -> {
       int closest_centroid_idx = centroids
           .zipWithIndex()
