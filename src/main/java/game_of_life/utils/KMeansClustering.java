@@ -5,7 +5,7 @@ import io.vavr.collection.Vector;
 import java.util.Random;
 
 public class KMeansClustering {
-  private static final int MAX_ITERATIONS = 40;
+  private static final int MAX_ITERATIONS = 70;
 
   @SuppressWarnings("unused")
   public static Vector<Vector<Point<Integer>>> kMeansCluster(Vector<Point<Integer>> points, int k) {

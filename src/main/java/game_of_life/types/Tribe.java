@@ -1,12 +1,26 @@
 package game_of_life.types;
 
+import game_of_life.utils.Color;
 import io.vavr.collection.Vector;
 
 public enum Tribe {
-  VIKINGS,
-  WARRIORS,
-  MAGES,
+  VIKINGS(Color.blue(), "A"),
+  WARRIORS(Color.green(), "B"),
+  MAGES(Color.red(), "C"),
   NONE;
+
+  private final String color;
+  private final String sigil;
+
+  Tribe() {
+    this.color = Color.c_default();
+    this.sigil = " ";
+  }
+
+  Tribe(String color, String sigil) {
+    this.color = color;
+    this.sigil = sigil;
+  }
 
   public static Vector<Tribe> getTribes() {
     return Vector.of(Tribe.values())
@@ -17,4 +31,8 @@ public enum Tribe {
     return tribe != Tribe.NONE;
   }
 
+  @Override
+  public String toString() {
+    return this.color + this.sigil;
+  }
 }

@@ -61,7 +61,7 @@ public class Board {
   }
 
   public void printBoard() {
-    Function2<Integer, Integer, String> printCell = (i, j) -> getSigil(frontBuffer[i][j]);
+    Function2<Integer, Integer, String> printCell = (i, j) -> frontBuffer[i][j].toString();
 
     Stream.range(0, ROWS).forEach(i -> {
       String idxStr = Integer.toString(i + 1);
@@ -96,19 +96,6 @@ public class Board {
 
     return yRangeVector.flatMap(y -> xRangeVector.filter(_x -> random.nextDouble() < PERCENTAGE_FILL)
         .map(x -> Point.from(x, y)));
-  }
-
-  private String getSigil(Tribe tribe) {
-    switch (tribe) {
-      case VIKINGS:
-        return Color.blue() + "A";
-      case WARRIORS:
-        return Color.green() + "B";
-      case MAGES:
-        return Color.red() + "C";
-      default:
-        return " ";
-    }
   }
 
   private void swapBuffers() {
