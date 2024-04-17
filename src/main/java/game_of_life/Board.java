@@ -1,5 +1,6 @@
 package game_of_life;
 
+import game_of_life.types.State;
 import game_of_life.types.Tribe;
 import game_of_life.utils.Color;
 import game_of_life.utils.KMeansClustering;
@@ -11,7 +12,10 @@ import io.vavr.collection.Stream;
 import io.vavr.collection.Vector;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -22,19 +26,15 @@ public class Board {
   private static final double PERCENTAGE_FILL = .3d;
   private final long DELAY;
 
+  private LinkedHashSet<Integer> visitedStatesMemo = new LinkedHashSet<>();
+
   private Tribe[][] frontBuffer;
   private Tribe[][] backBuffer;
 
   private Board(long delay) {
-    frontBuffer = new Tribe[ROWS][COLS];
-    backBuffer = new Tribe[ROWS][COLS];
+    frontBuffer = emptyBuffer();
+    backBuffer = emptyBuffer();
     this.DELAY = delay;
-
-    for (Tribe[] row : frontBuffer)
-      Arrays.fill(row, Tribe.NONE);
-
-    for (Tribe[] row : backBuffer)
-      Arrays.fill(row, Tribe.NONE);
 
     Pair<Integer, Integer> xRange = Pair.of(0, ROWS);
     Pair<Integer, Integer> yRange = Pair.of(0, COLS);
@@ -47,12 +47,21 @@ public class Board {
     return new Board(delay);
   }
 
-  public void nextState() {
+  public static Tribe[][] emptyBuffer() {
+    Tribe[][] buffer = new Tribe[ROWS][COLS];
+    for (Tribe[] row : buffer)
+      Arrays.fill(row, Tribe.NONE);
+    return buffer;
+  }
+
+  public State nextState() {
     clearConsole();
     swapBuffers();
     printBoard();
     CompletableFuture.runAsync(this::prepNextState);
     sleep();
+
+    return this.computeBoardNumericalState();
   }
 
   public void printBoard() {
@@ -66,6 +75,8 @@ public class Board {
       });
       System.out.println();
     });
+
+    System.out.println("e) exit | p) pause/start");
   }
 
   private void initializeBoard(Pair<Integer, Integer> xRange, Pair<Integer, Integer> yRange) {
@@ -112,52 +123,97 @@ public class Board {
     System.out.flush();
   }
 
-    private void prepNextState() {
-      Random random = new Random();
-      int rows_l = frontBuffer.length;
-      int cols_l = frontBuffer[0].length;
-      Vector<Integer> rows = Vector.range(0, rows_l);
-      Vector<Integer> cols = Vector.range(0, cols_l);
-  
-      rows.forEach(row -> cols.forEach(col -> {
-        Tribe currentTribe = frontBuffer[row][col];
-        Vector<Pair<Tribe, Integer>> tribe_aliveCounts = this.countTribeNeighbors(row, col);
-        int countLivingNeighbors = tribe_aliveCounts.foldLeft(0, (acc, pair) -> acc + pair.getSecond());
-  
-        if (Tribe.isAlive(currentTribe) && (countLivingNeighbors < 2 ||
-            countLivingNeighbors > 3)) {
+  private void prepNextState() {
+    Random random = new Random();
+    Vector<Integer> rows = Vector.range(0, ROWS);
+    Vector<Integer> cols = Vector.range(0, COLS);
+
+    rows.forEach(row -> cols.forEach(col -> {
+      Tribe currentTribe = frontBuffer[row][col];
+      Vector<Pair<Tribe, Integer>> tribe_aliveCounts = this.countTribeNeighbors(row, col);
+      int countLivingNeighbors = tribe_aliveCounts.foldLeft(0, (acc, pair) -> acc + pair.getSecond());
+
+      if (Tribe.isAlive(currentTribe) && (countLivingNeighbors < 2 ||
+          countLivingNeighbors > 3)) {
+        this.backBuffer[row][col] = Tribe.NONE;
+      } else if (Tribe.isAlive(currentTribe)) {
+        Pair<Tribe, Integer> tmp = tribe_aliveCounts.find(pair -> pair.getFirst() == currentTribe)
+            .getOrElse(Pair.of(currentTribe, -1));
+        if (tmp.getSecond() == 2 || tmp.getSecond() == 3) {
+          this.backBuffer[row][col] = currentTribe;
+        } else if (random.nextDouble() <= .5d) {
+          this.backBuffer[row][col] = currentTribe;
+        } else {
           this.backBuffer[row][col] = Tribe.NONE;
-        } else if (Tribe.isAlive(currentTribe)) {
-          Pair<Tribe, Integer> tmp = tribe_aliveCounts.find(pair -> pair.getFirst() == currentTribe)
-              .getOrElse(Pair.of(currentTribe, -1));
-          if (tmp.getSecond() == 2 || tmp.getSecond() == 3) {
-            this.backBuffer[row][col] = currentTribe;
-          } else if (random.nextDouble() <= .5d) {
-            this.backBuffer[row][col] = currentTribe;
-          } else {
-            this.backBuffer[row][col] = Tribe.NONE;
-          }
-        } else if (!Tribe.isAlive(currentTribe)) {
-          Pair<Tribe, Integer> tmp = tribe_aliveCounts
-              .find(pair -> pair.getSecond() == 3).getOrElse(Pair.of(Tribe.NONE, -1));
-              this.backBuffer[row][col] = tmp.getFirst();
         }
-      }));
+      } else if (!Tribe.isAlive(currentTribe)) {
+        Pair<Tribe, Integer> tmp = tribe_aliveCounts
+            .find(pair -> pair.getSecond() == 3).getOrElse(Pair.of(Tribe.NONE, -1));
+        this.backBuffer[row][col] = tmp.getFirst();
+      }
+    }));
+  }
+
+  private Vector<Pair<Tribe, Integer>> countTribeNeighbors(int row, int col) {
+    Vector<Tribe> neighbors = Vector.rangeClosed(-1, 1)
+        .flatMap(offsetRow -> Vector.rangeClosed(-1, 1).map(offsetCol -> Point.from(row + offsetRow, col + offsetCol)))
+        .reject(point -> point.getX() - row == 0 && point.getY() - col == 0)
+        .filter(point -> point.getX() >= 0 &&
+            point.getX() < frontBuffer.length &&
+            point.getY() >= 0 &&
+            point.getY() < frontBuffer[0].length)
+        .map(point -> frontBuffer[point.getX()][point.getY()])
+        .filter(tribe -> tribe != Tribe.NONE);
+
+    return Vector.of(Tribe.values())
+        .map(tribe -> Pair.of(tribe, neighbors.filter(curr_tribe -> curr_tribe == tribe).size()));
+  }
+
+  public Pair<Set<Tribe>, Integer> tribeHashBoard() {
+    int hash = 0;
+    final int prime = 31;
+    Set<Tribe> presentTribes = new HashSet<>();
+
+    for (int i = 0; i < ROWS; i++) {
+      for (int j = 0; j < COLS; j++) {
+        hash = prime * hash + frontBuffer[i][j].hashCode();
+        presentTribes.add(frontBuffer[i][j]);
+      }
+    }
+    presentTribes.remove(Tribe.NONE);
+    return Pair.of(presentTribes, hash);
+  }
+
+  public int cycleFrequency(int hash) {
+    int position = 0;
+    for (int currentHash : visitedStatesMemo) {
+      if (currentHash == hash) {
+        return visitedStatesMemo.size() - position - 1;
+      }
+      position++;
     }
 
-    private Vector<Pair<Tribe, Integer>> countTribeNeighbors(int row, int col) {
-      Vector<Tribe> neighbors = Vector.rangeClosed(-1, 1)
-          .flatMap(offsetRow -> Vector.rangeClosed(-1, 1).map(offsetCol -> Point.from(row + offsetRow, col + offsetCol)))
-          .reject(point -> point.getX() - row == 0 && point.getY() - col == 0)
-          .filter(point -> point.getX() >= 0 &&
-              point.getX() < frontBuffer.length &&
-              point.getY() >= 0 &&
-              point.getY() < frontBuffer[0].length)
-          .map(point -> frontBuffer[point.getX()][point.getY()])
-          .filter(tribe -> tribe != Tribe.NONE);
+    throw new Error("cycle must exist");
+  }
 
-      return Vector.of(Tribe.values())
-          .map(tribe -> Pair.of(tribe, neighbors.filter(curr_tribe -> curr_tribe == tribe).size()));
-    }
+  private State computeBoardNumericalState() {
+    Pair<Set<Tribe>, Integer> tribes_hash = tribeHashBoard();
+    Set<Tribe> presentTribes = tribes_hash.getFirst();
+    Tribe lastTribe = Tribe.NONE;
+    for (Tribe tribe : presentTribes)
+      lastTribe = tribe;
 
+    Integer currentHash = tribes_hash.getSecond();
+
+    if (visitedStatesMemo.contains(currentHash))
+      return State.CYCLING;
+    else if (presentTribes.size() == 1 && lastTribe == Tribe.NONE)
+      return State.EVERYONE_LOST;
+    else if (presentTribes.size() == 1)
+      return State.TRIBE_VICTORIOUS.setVictoriousTribe(lastTribe);
+
+    visitedStatesMemo.add(currentHash);
+
+    return State.RUNNING;
+  }
 }
