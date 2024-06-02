@@ -13,7 +13,7 @@ public class Game {
   private static Board board = Board.create(DELAY);
 
   public static void start() {
-    board.printBoard();
+    System.out.println(board);
     loop();
   }
 
@@ -39,7 +39,10 @@ public class Game {
 
       switch (signal) {
         case RUNNING:
-          signal = board.nextState();
+          signal = board.nextState(() -> {
+            System.out.println(board);
+            return 1;
+          });
           break;
         case CYCLING:
           System.out.println(Color.blue() +

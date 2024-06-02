@@ -3,10 +3,11 @@ package game_of_life;
 import game_of_life.types.State;
 import game_of_life.types.Tribe;
 import game_of_life.utils.Color;
+import game_of_life.utils.Console;
 import game_of_life.utils.KMeansClustering;
 import game_of_life.utils.Pair;
 import game_of_life.utils.Point;
-
+import io.vavr.Function0;
 import io.vavr.Function2;
 import io.vavr.collection.Stream;
 import io.vavr.collection.Vector;
@@ -54,29 +55,33 @@ public class Board {
     return buffer;
   }
 
-  public State nextState() {
-    clearConsole();
+  public State nextState(Function0<Integer> printAction) {
+    Console.clear();
     swapBuffers();
-    printBoard();
+    printAction.apply();
     CompletableFuture.runAsync(this::prepNextState);
     sleep();
 
     return this.computeBoardNumericalState();
   }
 
-  public void printBoard() {
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+
     Function2<Integer, Integer, String> printCell = (i, j) -> frontBuffer[i][j].toString();
 
     Stream.range(0, ROWS).forEach(i -> {
       String idxStr = Integer.toString(i + 1);
-      System.out.print(Color.c_default() + String.format("%" + (3 - idxStr.length()) + "s", idxStr) + " ");
+      sb.append(Color.c_default() + String.format("%" + (3 - idxStr.length()) + "s", idxStr) + " ");
       Stream.range(0, COLS).forEach(j -> {
-        System.out.print(printCell.apply(i, j));
+        sb.append(printCell.apply(i, j));
       });
-      System.out.println();
+      sb.append("\n");
     });
 
-    System.out.println("e) exit | p) pause/start");
+    sb.append("e) exit | p) pause/start");
+    return sb.toString();
   }
 
   private void initializeBoard(Pair<Integer, Integer> xRange, Pair<Integer, Integer> yRange) {
@@ -116,11 +121,6 @@ public class Board {
     } catch (InterruptedException e) {
       e.printStackTrace();
     }
-  }
-
-  public static void clearConsole() {
-    System.out.print("\033[H\033[2J");
-    System.out.flush();
   }
 
   private void prepNextState() {
