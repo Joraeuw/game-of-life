@@ -1,28 +1,41 @@
 package game_of_life;
 
-import java.util.Scanner;
+import java.io.Serializable;
 
 import game_of_life.types.State;
 import game_of_life.utils.Color;
+import game_of_life.utils.Console;
 
-public class Game {
-  private static final long DELAY = 200;
-  private static volatile boolean exit = false;
-  private static volatile boolean pause = false;
-  private static volatile State signal = State.RUNNING;
-  private static Board board = Board.create(DELAY);
+public class Game implements Serializable {
+  private static final long serialVersionUID = 8776813025115521740L;
 
-  public static void start() {
+  private volatile boolean exit = false;
+  private volatile boolean pause = false;
+  private volatile State signal = State.RUNNING;
+  private Board board;
+
+  public Game(int rows, int cols, int numberOfClusters, double percentageFill, int delay) {
+    board = Board.create(rows, cols, numberOfClusters, percentageFill, delay);
+  }
+
+  public void setExit(boolean exit) {
+    this.exit = exit;
+  }
+
+  public void setPause(boolean pause) {
+    this.pause = pause;
+  }
+
+  public void start() {
     System.out.println(board);
     loop();
   }
 
-  private static void loop() {
+  public void loop() {
     new Thread(() -> {
-      Scanner scanner = new Scanner(System.in);
       while (!exit) {
-        if (scanner.hasNext()) {
-          String input = scanner.next();
+        if (Console.hasNextLine()) {
+          String input = Console.readInput().trim();
           if (input.equalsIgnoreCase("e")) {
             exit = true;
           } else if (input.equalsIgnoreCase("p")) {
@@ -30,7 +43,6 @@ public class Game {
           }
         }
       }
-      scanner.close();
     }).start();
 
     while (!exit) {

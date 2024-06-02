@@ -12,6 +12,7 @@ import io.vavr.Function2;
 import io.vavr.collection.Stream;
 import io.vavr.collection.Vector;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -20,19 +21,27 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-public class Board {
-  private static final int ROWS = 40;
-  private static final int COLS = 90;
-  private static final int NUM_CLUSTERS = 3;
-  private static final double PERCENTAGE_FILL = .3d;
-  private final long DELAY;
+public class Board implements Serializable {
+  private static final long serialVersionUID = 8776813025115521740L;
+
+  private int ROWS = 40;
+  private int COLS = 90;
+  private int NUM_CLUSTERS = 3;
+  private double PERCENTAGE_FILL = .3d;
+  private int DELAY;
 
   private LinkedHashSet<Integer> visitedStatesMemo = new LinkedHashSet<>();
 
   private Tribe[][] frontBuffer;
   private Tribe[][] backBuffer;
 
-  private Board(long delay) {
+  public Board(int rows, int cols, int numberOfClusters, double percentageFill, int delay) {
+    this.ROWS = rows;
+    this.COLS = cols;
+    this.NUM_CLUSTERS = numberOfClusters;
+    this.PERCENTAGE_FILL = percentageFill;
+    this.DELAY = delay;
+
     frontBuffer = emptyBuffer();
     backBuffer = emptyBuffer();
     this.DELAY = delay;
@@ -44,11 +53,11 @@ public class Board {
     prepNextState();
   }
 
-  public static Board create(long delay) {
-    return new Board(delay);
+  public static Board create(int rows, int cols, int numberOfClusters, double percentageFill, int delay) {
+    return new Board(rows, cols, numberOfClusters, percentageFill, delay);
   }
 
-  public static Tribe[][] emptyBuffer() {
+  public Tribe[][] emptyBuffer() {
     Tribe[][] buffer = new Tribe[ROWS][COLS];
     for (Tribe[] row : buffer)
       Arrays.fill(row, Tribe.NONE);
@@ -80,12 +89,12 @@ public class Board {
       sb.append("\n");
     });
 
-    sb.append("e) exit | p) pause/start");
+    sb.append(Color.c_default() + "e) exit | p) pause/start");
     return sb.toString();
   }
 
   private void initializeBoard(Pair<Integer, Integer> xRange, Pair<Integer, Integer> yRange) {
-    Vector<Point<Integer>> points = Board.generatePositions(xRange, yRange);
+    Vector<Point<Integer>> points = this.generatePositions(xRange, yRange);
     Vector<Vector<Point<Integer>>> clusters = KMeansClustering.kMeansCluster(points, NUM_CLUSTERS);
     Tribe[] tribes = Tribe.values();
 
@@ -97,7 +106,7 @@ public class Board {
         });
   }
 
-  private static Vector<Point<Integer>> generatePositions(
+  private Vector<Point<Integer>> generatePositions(
       Pair<Integer, Integer> xRange,
       Pair<Integer, Integer> yRange) {
     Random random = new Random();
